@@ -1,5 +1,19 @@
 ![Bipropellant](.github/logo.png)
 
+
+Это форк проекта документация будет переведен на русский язык.
+
+Первое что хочется добавить. Если на плате процессор GDBR то его можно сменить на [STM32F103rct6](https://www.chipdip.ru/product/stm32f103rct6-2) в корпусе LQFP-64.
+
+Также для работы PPM необходимо занть сколько каналов у вашего передатчика и  указать количество каналов в файле config.h в каталоге inc проекта, переменная PPM_NUW_CHANNELS. Например передатчик для передатчика RC6 необходимо было указать 10 каналов.
+ Для прошивки борда нужен программатор stmlinkv2 подключеть его нужно к плате.
+Страничке прекрасного человека robo durden имя на youtube или на github https://github.com/RoboDurden.Проект создан для конфигурирования сборки в веб интерфейсе и скачивания бинарного файла.Если вам не нужно изменять код то это подходит идеально. [pionierland.de](https://pionierland.de/hoverhack/)
+
+Также прошивку можно осуществлять с помощью Visual studio code и плагина platform.io.Возможно сделаю видео.
+
+Есть проект в котором возможно упраление с помощью двух esp32s. как приемника и передатчика ссылку добавлю позже.
+
+
 bipropellant[ bahy-pruh-pel-uh nt ] - Most liquid-propellant rockets use bipropellant systems — i.e., those in which an oxidizer and a fuel are tanked separately and mixed in the combustion chamber.
 
 This repo, when mixed with the [protocol](https://github.com/bipropellant/bipropellant-protocol) repo, rocket-propels your hoverboard derived projects, now with added sinusoidal motor control.
