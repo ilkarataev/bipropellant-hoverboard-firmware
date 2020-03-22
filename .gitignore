@@ -3,9 +3,5 @@ build/*
 .pioenvs
 .piolibdeps
 .vscode/*
+.travis.yml
 lib/readme.txt
-_autosave*
-*-bak
-*.bak
-.DS_Store
-.pio/*

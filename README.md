@@ -1,112 +1,50 @@
-![Bipropellant](.github/logo.png)
+# NOTE: This project has moved to
+
+[BiPropellant Repos](https://github.com/bipropellant)
+All features from this repo are or will be merged to bipropellant. This branch here will not be updated anymore.
+
+# Deviations to [main repo](https://github.com/NiklasFauth/hoverboard-firmware-hack)
+* Build Environment is platform.io. Old Makefile based system should work too, but not tested.
+* UART Control can be configured to Connect to USART2 or USART3
+* Added CRC Checksum to UART Control. This way, the protocol just loses sync but the board does not try to kill you anymore (at least less often)
+* UART Control and Debug can be active on the same cable
+* Extended ADC Input Control config options. Default is platooning / "transpotter"
+* ADC Input Control can coexist with all other control Methods as long as the other Method uses the other cable
+* Watchdog Implemented which monitors if main is still running. Stops motors and shuts down if not.
+* Serial Protocol implemented (very shrunk down version from [btsimonh's pidcontrol](https://github.com/btsimonh/hoverboard-firmware-hack))
+  * PWM can be set and read
+  * Humand readable ASCII Protocol can coexist with machine parseable Messages
+  * Buzzer commands
+  * Hall Interrupts for Speed Feedback
+
+---
+
+# hoverboard-firmware-hack
+
+![](https://raw.githubusercontent.com/NiklasFauth/hoverboard-firmware-hack/master/docs/pictures/armchair.gif)   ![](https://raw.githubusercontent.com/NiklasFauth/hoverboard-firmware-hack/master/docs/pictures/bobbycar.gif)
+![](https://raw.githubusercontent.com/NiklasFauth/hoverboard-firmware-hack/master/docs/pictures/transpotter.gif)   ![](https://raw.githubusercontent.com/NiklasFauth/hoverboard-firmware-hack/master/docs/pictures/chair.gif)
 
 
-Это форк проекта документация будет переведен на русский язык.
+This repo contains open source firmware for generic Hoverboard Mainboards.
+The firmware you can find here allows you to use your Hoverboard Hardware (like the Mainboard, Motors and Battery) for cool projects like driving armchairs, person-tracking transportation robots and every other application you can imagine that requires controlling the Motors.
 
-Первое что хочется добавить. Если на плате процессор GDBR то его можно сменить на [STM32F103rct6](https://www.chipdip.ru/product/stm32f103rct6-2) в корпусе LQFP-64.
-
-Также для работы PPM необходимо занть сколько каналов у вашего передатчика и  указать количество каналов в файле config.h в каталоге inc проекта, переменная PPM_NUW_CHANNELS. Например передатчик для передатчика RC6 необходимо было указать 10 каналов.
- Для прошивки борда нужен программатор stmlinkv2 подключеть его нужно к плате.
-Страничке прекрасного человека robo durden имя на youtube или на github https://github.com/RoboDurden.Проект создан для конфигурирования сборки в веб интерфейсе и скачивания бинарного файла.Если вам не нужно изменять код то это подходит идеально. [pionierland.de](https://pionierland.de/hoverhack/)
-
-Также прошивку можно осуществлять с помощью Visual studio code и плагина platform.io.Возможно сделаю видео.
-
-Есть проект в котором возможно упраление с помощью двух esp32s. как приемника и передатчика ссылку добавлю позже.
+If you want an overview of what you can do with this firmware, here is a ~40min video of a talk about this project:
+https://media.ccc.de/v/gpn18-95-howto-moving-objects
 
 
-bipropellant[ bahy-pruh-pel-uh nt ] - Most liquid-propellant rockets use bipropellant systems — i.e., those in which an oxidizer and a fuel are tanked separately and mixed in the combustion chamber.
+---
 
-This repo, when mixed with the [protocol](https://github.com/bipropellant/bipropellant-protocol) repo, rocket-propels your hoverboard derived projects, now with added sinusoidal motor control.
+## Build Instructions
 
-[![Build Status](https://travis-ci.com/bipropellant/bipropellant-hoverboard-firmware.svg?branch=master)](https://travis-ci.com/bipropellant/bipropellant-hoverboard-firmware)
+Here are detailed build instructions for some finished projects.
+If possible, a prebuild firmware release is available for these usecases, so you don't need to compile the firmware yourself
 
-This firmware is a heavily modified version of [Niklas Fauth's hoverboard firmware](https://github.com/NiklasFauth/hoverboard-firmware-hack) which allows you to:
- * Use the hoverboard AS A HOVERBOARD
- * Control externaly the hoverboard with a reliable serial protocol.
+TranspOtter: https://github.com/NiklasFauth/hoverboard-firmware-hack/wiki/Build-Instruction:-TranspOtter
 
-This project was started by [btsimonh](https://github.com/btsimonh)
+---
 
-It branched from Niklas Fauth's hoverboard firmware at this commit: [Aug 24, 2018](https://github.com/bipropellant/hoverboard-firmware/commit/28287b9acc53b68ff4dede0de61852188838da51)
-
-# Added:
-
-### Software serial:
-This allows you to use ANY GPIO pins (with modififcation) as serial.  Probably best to stay at 9600 baud, as the receive interrupt is serviced at 8x the bitrate.
-
-### Sensor reading:
-It reads the original serial data (9 bit) from the original sensor boards from USART2&3.
-
-### Sensor control:
-Sensor data can control the PWM demands (power to the wheels).  Double tap on pads to enable.
-
-### Serial diagnostic control:
-Protocol.c implements a [simple ASCII serial protocol](https://github.com/bipropellant/hoverboard-firmware/wiki/Simple-ASCII-interface) which allows for manual control of the board.
-
-### Serial Machine control:
-Protocol.c implements the bones of an acked/checksummed serial protocol.  Embryonic as yet, but intended to be a generic control protocol for the hoverboard.
-
-Sample C++ code to send pwm and steer:
-
-` setHoverboardPWM(300,-300); // sends 300 (=30% duty cycle forward) to one wheel and -300 (=30% duty cycle backwards) to the other `
-```
-
-typedef struct MsgToHoverboard_t{
-  unsigned char SOM;  // Start of Message
-  unsigned char CI;   // continuity counter
-  unsigned char len;  // len is len of bytes to follow, NOT including CS
-  unsigned char cmd;  // read or write
-  unsigned char code; // code of value to write
-  int32_t pwm1;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for first wheel
-  int32_t pwm2;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for second wheel
-  unsigned char CS;   // checksumm
-};
-
-typedef union UART_Packet_t{
-  MsgToHoverboard_t msgToHover;
-  byte UART_Packet[sizeof(MsgToHoverboard_t)];
-};
-
-char hoverboardCI = 0;  // Global variable which tracks CI
-
-void setHoverboardPWM( int32_t pwm1, int32_t pwm2 )
-{
-  UART_Packet_t ups;
-
-  ups.msgToHover.SOM = 4 ;    // Start of Message, 4 for No ACKs;
-  ups.msgToHover.CI = ++hoverboardCI; // Message Continuity Indicator. Subsequent Messages with the same CI are discarded, need to be incremented.
-  ups.msgToHover.len = 1 + 1 + 4 + 4 ; // cmd(1), code(1), pwm1(4) and pwm2(4)
-  ups.msgToHover.cmd  = 'r';  // Pretend to send answer to read request. This way HB will not reply. Change to 'W' to get confirmation from board
-  ups.msgToHover.code = 0x0E; // "simpler PWM"
-  ups.msgToHover.pwm1 = pwm1;
-  ups.msgToHover.pwm2 = pwm2;
-  ups.msgToHover.CS = 0;
-
-  for (int i = 0; i < (2 + ups.msgToHover.len); i++){  // Calculate checksum. 2 more for CI and len.
-    ups.msgToHover.CS -= ups.UART_Packet[i+1];
-  }
-
-  Serial.write(ups.UART_Packet,sizeof(UART_Packet_t));
-}
-```
-This code is only able to write values to the board, replies can not be parsed. For more information check the [hoverboard protocol wiki](https://github.com/bipropellant/bipropellant-protocol/wiki) and [examples](https://github.com/bipropellant/bipropellant-protocol/tree/master/examples).
-An Arduino compatible C++ module which can communicate in both directions can be found at [bipropellant-hoverboard-api](https://github.com/bipropellant/bipropellant-hoverboard-api).
-
-### PID Control:
-PID control loops for control of Speed (in mm/sec) and Position (in mm).  Currently separate control modes, and parameter need better tuning.
-
-### Hall Interupts:
-Used to read Position and Speed data.
-
-### Flash settings:
-Implements a flash page available for efficitent storage of parameters (currently unused, but tested).
-
-*Should work with original control settings (in config.h), but not tested...*
-
-### ADC inputs
-Multiple inputs like Joystick, speed throttle and Gametrak can be easily configured. Check out the [wiki](https://github.com/bipropellant/bipropellant-hoverboard-firmware/wiki/ADC-Configurations)
-
-# Hardware
-![Motherboard](.github/pinout.png)
+## Hardware
+![otter](https://raw.githubusercontent.com/NiklasFauth/hoverboard-firmware-hack/master/pinout.png)
 
 The original Hardware supports two 4-pin cables that originally were connected to the two sensor boards. They break out GND, 12/15V and USART2&3 of the Hoverboard mainboard.
 Both USART2 & 3 can be used for UART and I2C, PA2&3 can be used as 12bit ADCs.
@@ -115,13 +53,115 @@ The reverse-engineered schematics of the mainboard can be found here:
 http://vocke.tv/lib/exe/fetch.php?media=20150722_hoverboard_sch.pdf
 
 
-# Building and flashing
-The repository uses a submodule for the serial protocol.
-Clone with submodules: ´git clone --recurse-submodules´
-Or afterwards: ´git submodule update --init --recursive´
+### Inputs
+Plenty of input Methods can be used to control the board.
+You can configure your preferred Method in config.h.
+#### Analog Values
+Probably the most reliable Method. 2 Potis can be connected to one of the old sensor board connections. Make sure to reference the Poti voltages to 3.3V, not 12V or 15V. The gametrak Controller in the TranspOtter project is an examample for analog input.
+#### PPM Input
+[Pulse Pause Modulated](https://en.wikipedia.org/wiki/Pulse-position_modulation) Signals.
+#### I2C/Nunchuck
+A nunchuck, which communicates via I2C can be connected to the board. Have a look into the troubleshooting section if you have trouble with the Nunchucks.
+#### UART
+A complete protocol is implemented to communicate with the board. Have a look at protocol.c to find out how it works.
+Sample code to send speed and steer:
 
-[Take a look at our wiki](https://github.com/bipropellant/hoverboard-firmware/wiki/Building-and-flashing)
+` setHoverboardPWM(200,50); // sends 200 as speed and 50 steer `
+```
+typedef struct MsgToHoverboard_t{
+  unsigned char SOM;  // 0x02
+  unsigned char len;  // len is len of ALL bytes to follow, including CS
+  unsigned char cmd;  // 'W'
+  unsigned char code; // code of value to write
+  int16_t base_pwm;   // absolute value ranging from -1000 to 1000 .. base_pwm plus/minus steer is the raw PWM value
+  int16_t steer;      // absolute value ranging from -1000 to 1000 .. wether steer is added or substracted depends on the side R/L
+  unsigned char CS;   // checksumm
+};
+
+typedef union UART_Packet_t{
+  MsgToHoverboard_t msgToHover;
+  byte UART_Packet[sizeof(MsgToHoverboard_t)];
+};
+
+void setHoverboardPWM( int16_t base_pwm, int16_t steer )
+{
+  UART_Packet_t ups;
+
+  ups.msgToHover.SOM = 2 ;  // PROTOCOL_SOM; //Start of Message;
+  ups.msgToHover.len = 7;   // payload + SC only
+  ups.msgToHover.cmd  = 'W'; // PROTOCOL_CMD_WRITEVAL;  // Write value
+  ups.msgToHover.code = 0x07; // speed data from params array
+  ups.msgToHover.base_pwm = base_pwm;
+  ups.msgToHover.steer = steer;
+  ups.msgToHover.CS = 0;
+
+  for (int i = 0; i < ups.msgToHover.len; i++){
+    ups.msgToHover.CS -= ups.UART_Packet[i+1];
+  }
+
+  Serial1.write(ups.UART_Packet,sizeof(UART_Packet_t));
+}
+```
+a project which makes use of the protocol (ESP32) can be found at https://github.com/p-h-a-i-l/hoverboard-control
+
+---
+
+## Compiling
+To build the firmware, just type "make". Make sure you have specified your gcc-arm-none-eabi binary (version 7 works, there is a version that does not!) location in the Makefile ("PREFIX = ...").
+
+The firmware will also build (and flash) very easily from platform.io, plaformio.ini file included.  Simply open the folder in the IDE of choice (vscode or Atom), and press the 'PlatformIO:Build' or the 'PlatformIO:Upload' button (bottom left in vscode).
+
+(Note: if you have no buttons, use Debug/Add Configuration, and select 'PlatformIO Debugger'; seems to kick it into life).
 
 
-# Any other problems ?
-First [take a look at our wiki](https://github.com/bipropellant/hoverboard-firmware/wiki) and [open issues](https://github.com/bipropellant/hoverboard-firmware/issues), if you still have any problem/question, feel free to [open a new issue](https://github.com/bipropellant/hoverboard-firmware/issues/new)!
+## Flashing
+Right to the STM32, there is a debugging header with GND, 3V3, SWDIO and SWCLK. Connect GND, SWDIO and SWCLK to your SWD programmer, like the ST-Link found on many STM devboards.
+
+Make sure you hold the powerbutton or connect a jumper to the power button pins while flashing the firmware, as the STM might release the power latch and switches itself off during flashing. Battery > 36V have to be connected while flashing.
+
+To flash the STM32, use the ST-Flash utility (https://github.com/texane/stlink).
+
+If you never flashed your mainboard before, the STM is probably locked. To unlock the flash, use the following OpenOCD command:
+```
+openocd -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c init -c "reset halt" -c "stm32f1x unlock 0"
+```
+
+If that does not work:
+```
+openocd -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c init -c "reset halt" -c "mww 0x40022004 0x45670123" -c "mww 0x40022004 0xCDEF89AB" -c "mww 0x40022008 0x45670123" -c "mww 0x40022008 0xCDEF89AB" -c "mww 0x40022010 0x220" -c "mww 0x40022010 0x260" -c "sleep 100" -c "mww 0x40022010 0x230" -c "mwh 0x1ffff800 0x5AA5" -c "sleep 1000" -c "mww 0x40022010 0x2220" -c "sleep 100" -c "mdw 0x40022010" -c "mdw 0x4002201c" -c "mdw 0x1ffff800" -c targets -c "halt" -c "stm32f1x unlock 0"
+```
+```
+openocd -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c init -c "reset halt" -c "mww 0x40022004 0x45670123" -c "mww 0x40022004 0xCDEF89AB" -c "mww 0x40022008 0x45670123" -c "mww 0x40022008 0xCDEF89AB" -c targets -c "halt" -c "stm32f1x unlock 0"
+```
+Or use the Windows ST-Link utility.
+
+Then you can simply flash the firmware:
+```
+st-flash --reset write build/hover.bin 0x8000000
+```
+
+---
+## Troubleshooting
+First, check that power is connected and voltage is >36V while flashing.
+If the board draws more than 100mA in idle, it's probably broken.
+
+If the motors do something, but don't rotate smooth and quietly, try to use an alternative phase mapping. Usually, color-correct mapping (blue to blue, green to green, yellow to yellow) works fine. However, some hoverboards have a different layout then others, and this might be the reason your motor isn't spinning.
+
+Nunchuck not working: Use the right one of the 2 types of nunchucks. Use i2c pullups.
+
+Nunchuck or PPM working bad: The i2c bus and PPM signal are very sensitive to emv distortions of the motor controller. They get stronger the faster you are. Keep cables short, use shielded cable, use ferrits, stabilize voltage in nunchuck or reviever, add i2c pullups. To many errors leads to very high accelerations which triggers the protection board within the battery to shut everything down.
+
+Most robust way for input is to use the ADC and potis. It works well even on 1m unshielded cable. Solder ~100k Ohm resistors between ADC-inputs and gnd directly on the mainboard. Use potis as pullups to 3.3V.
+
+---
+
+
+## Examples
+
+Have a look at the config.h in the Inc directory. That's where you configure to firmware to match your project.
+Currently supported: Wii Nunchuck, analog potentiometer and PPM-Sum signal from a RC remote.
+If you need additional features like a boost button, have a look at the while(1) loop in the main.c
+
+### Projects based on
+* [bobbycar-optimized firmware](https://github.com/larsmm/hoverboard-firmware-hack-bbcar)  based on this one with driving modes, acceleration ramps and some other features
+* [wheel chair](https://github.com/Lahorde/steer_speed_ctrl) controlled with a joystick or using a CC2650 sensortag to control it over  bluetooth with pitch/roll.

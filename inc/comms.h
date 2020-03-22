@@ -13,23 +13,23 @@ typedef struct tag_serial_usart_buffer {
 
 #if defined(SERIAL_USART2_IT)
 
-    extern volatile SERIAL_USART_BUFFER usart2_it_TXbuffer;
-    extern volatile SERIAL_USART_BUFFER usart2_it_RXbuffer;
+volatile SERIAL_USART_BUFFER usart2_it_TXbuffer;
+volatile SERIAL_USART_BUFFER usart2_it_RXbuffer;
 
-    int   USART2_IT_starttx();
-    int   USART2_IT_send(unsigned char *data, int len);
-    void  USART2_IT_IRQ(USART_TypeDef *us);
+int   USART2_IT_starttx();
+int   USART2_IT_send(unsigned char *data, int len);
+void  USART2_IT_IRQ(USART_TypeDef *us);
 
 #endif
 
 #if defined(SERIAL_USART3_IT)
 
-    extern volatile SERIAL_USART_BUFFER usart3_it_TXbuffer;
-    extern volatile SERIAL_USART_BUFFER usart3_it_RXbuffer;
+volatile SERIAL_USART_BUFFER usart3_it_TXbuffer;
+volatile SERIAL_USART_BUFFER usart3_it_RXbuffer;
 
-    int   USART3_IT_starttx();
-    int   USART3_IT_send(unsigned char *data, int len);
-    void  USART3_IT_IRQ(USART_TypeDef *us);
+int   USART3_IT_starttx();
+int   USART3_IT_send(unsigned char *data, int len);
+void  USART3_IT_IRQ(USART_TypeDef *us);
 
 #endif
 
@@ -43,8 +43,6 @@ void setScopeChannel(uint8_t ch, int16_t val);
 void consoleScope();
 void consoleLog(char *message);
 
-extern int autoSensorBaud2;
-extern int autoSensorBaud3;
 /////////////////////////////////////////////////////////
 
 

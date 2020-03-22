@@ -21,8 +21,9 @@
 #include "defines.h"
 #include "config.h"
 #include "hallinterrupts.h"
-#include <string.h>
-#include "control_structures.h"
+#include <memory.h>
+
+#ifdef HALL_INTERRUPTS
 
 //////////////////////////////////////////////////////////////
 // file reads Hall sensors, and gets Distance and Speed.
@@ -60,23 +61,13 @@
 // void HallInterruptReadPosn( HALL_POSN *p, int Reset )
 volatile HALL_DATA_STRUCT HallData[2];
 
-volatile uint8_t hall_ul;
-volatile uint8_t hall_vl;
-volatile uint8_t hall_wl;
-
-volatile uint8_t hall_ur;
-volatile uint8_t hall_vr;
-volatile uint8_t hall_wr;
-
-volatile unsigned  bldc_count_per_hall[2] = {0, 0};
-extern volatile unsigned  bldc_count_per_hall_counter[2];
 
 //////////////////////////////////////////////////////////////
 // local data
 TIM_HandleTypeDef h_timer_hall;
 volatile HALL_PARAMS local_hall_params[2];
 
-volatile int64_t timerwraps = 0;
+volatile long long timerwraps = 0;
 
 static float WheelSize_mm = (DEFAULT_WHEEL_SIZE_INCHES * 25.4);
 
@@ -206,16 +197,6 @@ static const int increments[7][7] =
 };
 
 
-TIME_STATS timeStats;
-
-static volatile int64_t now_us = 0;
-
-int64_t HallGetuS(){
-    unsigned short time = h_timer_hall.Instance->CNT;
-    int64_t timerwraps_copy = timerwraps;
-    now_us = ((timerwraps_copy<<16) + time) * 10;
-    return now_us;
-}
 
 /////////////////////////////////////////////////////////////////////
 // called from rising and falling edge interrupts off hall GPIO pins.
@@ -223,22 +204,15 @@ int64_t HallGetuS(){
 void HallInterruptsInterrupt(void){
     // we only want the count from this 100khz clock
     __disable_irq(); // but we want both values at the same time, without interferance
-    uint32_t time = h_timer_hall.Instance->CNT;
-    int64_t timerwraps_copy = timerwraps;
+    unsigned long time = h_timer_hall.Instance->CNT;
+    long long timerwraps_copy = timerwraps;
+#ifdef SWITCH_WHEELS
+    local_hall_params[1].hall = (~(LEFT_HALL_U_PORT->IDR & (LEFT_HALL_U_PIN | LEFT_HALL_V_PIN | LEFT_HALL_W_PIN))/LEFT_HALL_U_PIN) & 7;
+    local_hall_params[0].hall = (~(RIGHT_HALL_U_PORT->IDR & (RIGHT_HALL_U_PIN | RIGHT_HALL_V_PIN | RIGHT_HALL_W_PIN))/RIGHT_HALL_U_PIN) & 7;
+#else
     local_hall_params[0].hall = (~(LEFT_HALL_U_PORT->IDR & (LEFT_HALL_U_PIN | LEFT_HALL_V_PIN | LEFT_HALL_W_PIN))/LEFT_HALL_U_PIN) & 7;
     local_hall_params[1].hall = (~(RIGHT_HALL_U_PORT->IDR & (RIGHT_HALL_U_PIN | RIGHT_HALL_V_PIN | RIGHT_HALL_W_PIN))/RIGHT_HALL_U_PIN) & 7;
-
-    unsigned short Left = LEFT_HALL_U_PORT->IDR;
-    unsigned short Right = RIGHT_HALL_U_PORT->IDR;
-
-    // Get hall sensors values
-    hall_ul = !(Left & LEFT_HALL_U_PIN);
-    hall_vl = !(Left & LEFT_HALL_V_PIN);
-    hall_wl = !(Left & LEFT_HALL_W_PIN);
-
-    hall_ur = !(Right & RIGHT_HALL_U_PIN);
-    hall_vr = !(Right & RIGHT_HALL_V_PIN);
-    hall_wr = !(Right & RIGHT_HALL_W_PIN);
+#endif
     __enable_irq();
 
     for (int i = 0; i < 2; i++){
@@ -247,12 +221,9 @@ void HallInterruptsInterrupt(void){
             if (local_hall_params[i].last_hall == 0){
                 // valid startup condition
             } else {
-                bldc_count_per_hall[i] = bldc_count_per_hall_counter[i];
-                bldc_count_per_hall_counter[i] = 0;
-
                 local_hall_params[i].zerospeedtimeout = 5; // number of timer wraps to after which to assume speed zero
                 local_hall_params[i].hall_time = (timerwraps_copy << 16) | time;
-                int64_t dt = local_hall_params[i].hall_time - local_hall_params[i].last_hall_time;
+                long long dt = local_hall_params[i].hall_time - local_hall_params[i].last_hall_time;
 
                 // note correction of direction for left wheel
                 local_hall_params[i].incr =
@@ -261,7 +232,7 @@ void HallInterruptsInterrupt(void){
 
                 HallData[i].HallPosn = HallData[i].HallPosn + local_hall_params[i].incr;
                 HallData[i].HallPosn_mm = (int)((float)HallData[i].HallPosn)*HallData[i].HallPosnMultiplier;
-                HallData[i].HallTimeDiff = (uint32_t)dt;
+                HallData[i].HallTimeDiff = (unsigned long)dt;
 
                 if (local_hall_params[i].incr != 0){
                     // speed = distance/time
@@ -308,3 +279,5 @@ void TIM4_IRQHandler(void){
         }
     }
 }
+
+#endif

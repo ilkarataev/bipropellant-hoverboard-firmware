@@ -36,8 +36,6 @@
 #include "stm32f1xx_it.h"
 #include "config.h"
 #include "hallinterrupts.h"
-#include "softwareserial.h"
-
 
 extern DMA_HandleTypeDef hdma_i2c2_rx;
 extern DMA_HandleTypeDef hdma_i2c2_tx;
@@ -45,6 +43,10 @@ extern I2C_HandleTypeDef hi2c2;
 
 extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
+extern TIM_HandleTypeDef htim3;
+
+extern DMA_HandleTypeDef hdma_usart3_rx;
+extern DMA_HandleTypeDef hdma_usart3_tx;
 
 /* USER CODE BEGIN 0 */
 
@@ -221,64 +223,19 @@ void DMA1_Channel5_IRQHandler(void)
 }
 #endif
 
-
-
-/////////////////////////////////////////
-// EXTI interrupts - used for HallInterrupt, Softwarewareserial, and PWM
-
-void EXTI0_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);
-#ifdef SOFTWARE_SERIAL
-    if (SOFTWARE_SERIAL_RX_PIN == GPIO_PIN_0)
-      softwareserialRXInterrupt();
-#endif
-}
-
-void EXTI1_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_1);
-#ifdef SOFTWARE_SERIAL
-    if (SOFTWARE_SERIAL_RX_PIN == GPIO_PIN_1)
-      softwareserialRXInterrupt();
-#endif
-}
-
-void EXTI2_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
-#ifdef SOFTWARE_SERIAL
-    if (SOFTWARE_SERIAL_RX_PIN == GPIO_PIN_2)
-      softwareserialRXInterrupt();
-#endif
-}
-
+#ifdef CONTROL_PPM
 void EXTI3_IRQHandler(void)
 {
-#ifdef CONTROL_PPM
     PPM_ISR_Callback();
-#endif
     __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
-#ifdef SOFTWARE_SERIAL
-    if (SOFTWARE_SERIAL_RX_PIN == GPIO_PIN_3)
-      softwareserialRXInterrupt();
-#endif
 }
-
-void EXTI4_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_4);
-#ifdef SOFTWARE_SERIAL
-    if (SOFTWARE_SERIAL_RX_PIN == GPIO_PIN_4)
-      softwareserialRXInterrupt();
 #endif
-}
 
 /////////////////////////////////////////////////////////////////////
 // actual IRQ for LEFT pins 5,6,7
 void EXTI9_5_IRQHandler(void)
 {
-  uint32_t triggered = 0;
+  unsigned long triggered = 0;
   if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_9) != RESET)
   {
     /* Clear the EXTI line 8 pending bit */
@@ -313,14 +270,9 @@ void EXTI9_5_IRQHandler(void)
     triggered |= GPIO_PIN_5;
   }
 
+#ifdef HALL_INTERRUPTS
   if (triggered & HALL_PIN_MASK)
     HallInterruptsInterrupt();
-
-// shared interrupt for these pins, depending on where the sfotware serial pin is
-#ifdef SOFTWARE_SERIAL
-  if (triggered & SOFTWARE_SERIAL_RX_PIN){
-      softwareserialRXInterrupt();
-  }
 #endif
 }
 
@@ -328,7 +280,7 @@ void EXTI9_5_IRQHandler(void)
 // actual IRQ for RIGHT pins 10, 11, 12
 void EXTI15_10_IRQHandler(void)
 {
-  uint32_t triggered = 0;
+  unsigned long triggered = 0;
   if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_15) != RESET)
   {
     /* Clear the EXTI line 8 pending bit */
@@ -368,34 +320,12 @@ void EXTI15_10_IRQHandler(void)
     triggered |= GPIO_PIN_10;
   }
 
+#ifdef HALL_INTERRUPTS
   if (triggered & HALL_PIN_MASK)
     HallInterruptsInterrupt();
-
-// shared interrupt for these pins, depending on where the sfotware serial pin is
-#ifdef SOFTWARE_SERIAL
-  if (triggered & SOFTWARE_SERIAL_RX_PIN){
-      softwareserialRXInterrupt();
-  }
 #endif
-
 }
 // end EXTI
-/////////////////////////////////////////
-
-
-/////////////////////////////////////////
-// timer interrupts
-
-//
-// TIM2 is used in softwareserial, but without interrupts.
-// void TIM3_IRQHandler(void) - defined in softwareserial.c
-// void TIM4_IRQHandler(void) - defined in hallinterrupts.c
-//
-
-// end timer interrupts
-/////////////////////////////////////////
-
-
 /////////////////////////////////////////
 // UART interrupts
 
@@ -415,9 +345,9 @@ void USART3_IRQHandler(void){
 }
 #endif
 //
-/////////////////////////////////////////
+////////////////////////////////////////
 
-#ifdef CONTROL_SERIAL_USART2
+#ifdef CONTROL_SERIAL_NAIVE_USART2
 void DMA1_Channel6_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
@@ -444,12 +374,58 @@ void DMA1_Channel7_IRQHandler(void)
 }
 #endif
 
+
+#ifdef CONTROL_SERIAL_NAIVE_USART3
+/**
+* @brief This function handles DMA1 channel3 global interrupt.
+*/
+void DMA1_Channel3_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel3_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart3_rx);
+  /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel3_IRQn 1 */
+}
+
+/**
+* @brief This function handles DMA1 channel2 global interrupt.
+*/
+void DMA1_Channel2_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel2_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart3_tx);
+  /* USER CODE BEGIN DMA1_Channel2_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel2_IRQn 1 */
+}
+#endif
+
 /******************************************************************************/
 /* STM32F1xx Peripheral Interrupt Handlers                                    */
 /* Add here the Interrupt Handlers for the used peripherals.                  */
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f1xx.s).                    */
 /******************************************************************************/
+
+
+/**
+* @brief This function handles TIM3 global interrupt.
+*/
+void TIM3_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM3_IRQn 0 */
+
+  /* USER CODE END TIM3_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim3);
+  /* USER CODE BEGIN TIM3_IRQn 1 */
+
+  /* USER CODE END TIM3_IRQn 1 */
+}
 
 
 /* USER CODE BEGIN 1 */

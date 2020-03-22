@@ -8,7 +8,7 @@
 
 TIM_HandleTypeDef TimHandle;
 uint8_t ppm_count = 0;
-uint32_t input_timeout_counter = INPUT_TIMEOUT+1;
+uint32_t timeout = 100;
 uint8_t nunchuck_data[6] = {0};
 
 uint8_t i2cBuffer[2];
@@ -40,7 +40,7 @@ void PPM_ISR_Callback() {
     ppm_count = 0;
   }
   else if (ppm_count < PPM_NUM_CHANNELS && IN_RANGE(rc_delay, 900, 2100)){
-    input_timeout_counter = 0;
+    timeout = 0;
     ppm_captured_value_buffer[ppm_count++] = CLAMP(rc_delay, 1000, 2000) - 1000;
   } else {
     ppm_valid = false;
@@ -78,7 +78,7 @@ void PPM_Init() {
   HAL_TIM_Base_Init(&TimHandle);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0); // TODO
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
   HAL_TIM_Base_Start(&TimHandle);
 }
@@ -104,10 +104,12 @@ void Nunchuck_Read() {
   HAL_I2C_Master_Transmit(&hi2c2,0xA4,(uint8_t*)i2cBuffer, 1, 100);
   HAL_Delay(5);
   if (HAL_I2C_Master_Receive(&hi2c2,0xA4,(uint8_t*)nunchuck_data, 6, 100) == HAL_OK) {
-    input_timeout_counter = 0;
+    timeout = 0;
+  } else {
+    timeout++;
   }
 
-  if (input_timeout_counter > INPUT_TIMEOUT) {
+  if (timeout > 3) {
     HAL_Delay(50);
     Nunchuck_Init();
   }

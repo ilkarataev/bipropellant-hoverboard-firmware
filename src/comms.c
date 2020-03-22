@@ -5,36 +5,26 @@
 #include "stdio.h"
 #include "string.h"
 #include "comms.h"
-#include "softwareserial.h"
-
 
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart3;
 
-
 #ifdef DEBUG_SERIAL_USART3
 #define UART_DMA_CHANNEL DMA1_Channel2
+extern UART_HandleTypeDef huart3;
 #endif
 
 #ifdef DEBUG_SERIAL_USART2
 #define UART_DMA_CHANNEL DMA1_Channel7
+extern UART_HandleTypeDef huart2;
 #endif
 
 
 volatile uint8_t uart_buf[100];
 volatile int16_t ch_buf[8];
 
-#if defined(SERIAL_USART2_IT)
-  volatile SERIAL_USART_BUFFER usart2_it_TXbuffer;
-  volatile SERIAL_USART_BUFFER usart2_it_RXbuffer;
-#endif
-#if defined(SERIAL_USART3_IT)
-  volatile SERIAL_USART_BUFFER usart3_it_TXbuffer;
-  volatile SERIAL_USART_BUFFER usart3_it_RXbuffer;
-#endif
-
-uint8_t debug_out = 1;
-uint8_t enablescope = 1;
+int debug_out = 1;
+int enablescope = 1;
 
 //volatile char char_buf[300];
 
@@ -46,7 +36,7 @@ void consoleScope() {
   if (!enablescope)
     return;
 
-  #if defined DEBUG_SERIAL_SERVOTERM && defined DEBUG_SERIAL_USART3
+    #if defined DEBUG_SERIAL_SERVOTERM && (defined DEBUG_SERIAL_USART2 || defined DEBUG_SERIAL_USART3)
     uart_buf[0] = 0xff;
     uart_buf[1] = CLAMP(ch_buf[0]+127, 0, 255);
     uart_buf[2] = CLAMP(ch_buf[1]+127, 0, 255);
@@ -57,6 +47,8 @@ void consoleScope() {
     uart_buf[7] = CLAMP(ch_buf[6]+127, 0, 255);
     uart_buf[8] = CLAMP(ch_buf[7]+127, 0, 255);
     uart_buf[9] = '\n';
+    uart_buf[10] = CLAMP(ch_buf[7]+127, 0, 255);
+    uart_buf[11] = CLAMP(ch_buf[7]+127, 0, 255);
 
     if(UART_DMA_CHANNEL->CNDTR == 0) {
       UART_DMA_CHANNEL->CCR &= ~DMA_CCR_EN;
@@ -66,9 +58,9 @@ void consoleScope() {
     }
   #endif
 
-  #if defined DEBUG_SERIAL_ASCII && defined DEBUG_SERIAL_USART3
+  #if defined DEBUG_SERIAL_ASCII && (defined DEBUG_SERIAL_USART2 || defined DEBUG_SERIAL_USART3)
     memset(uart_buf, 0, sizeof(uart_buf));
-    sprintf(uart_buf, "1:%i 2:%i 3:%i 4:%i 5:%i 6:%i 7:%i 8:%i\r\n", ch_buf[0], ch_buf[1], ch_buf[2], ch_buf[3], ch_buf[4], ch_buf[5], ch_buf[6], ch_buf[7]);
+    sprintf(uart_buf, "1:%i 2:%i 3:%i 4:%i 5:%i 6:%i 7:%i 8:%i PPM_channel:%i PPM_channel2:%i \r\n", ch_buf[0], ch_buf[1], ch_buf[2], ch_buf[3], ch_buf[4], ch_buf[5], ch_buf[6], ch_buf[7],ch_buf[10], ch_buf[11]);
 
     if(UART_DMA_CHANNEL->CNDTR == 0) {
       UART_DMA_CHANNEL->CCR &= ~DMA_CCR_EN;
@@ -77,46 +69,26 @@ void consoleScope() {
       UART_DMA_CHANNEL->CCR |= DMA_CCR_EN;
     }
   #endif
-
-  #if defined DEBUG_SERIAL_ASCII && defined DEBUG_SERIAL_SENSOR && defined CONTROL_SENSOR
-    memset(uart_buf, 0, sizeof(uart_buf));
-    sprintf(uart_buf, "1:%i 2:%i 3:%i 4:%i 5:%i 6:%i 7:%i 8:%i\r\n", ch_buf[0], ch_buf[1], ch_buf[2], ch_buf[3], ch_buf[4], ch_buf[5], ch_buf[6], ch_buf[7]);
-    USART_sensorSend(0, uart_buf, strlen(uart_buf), 0);
-    USART_sensorSend(1, uart_buf, strlen(uart_buf), 0);
-  #endif
-
-  #if defined DEBUG_SERIAL_ASCII && defined DEBUG_SOFTWARE_SERIAL
-    if (debug_out){
-      memset((void *)uart_buf, 0, sizeof(uart_buf));
-      sprintf((void *)uart_buf, "1:%i 2:%i 3:%i 4:%i 5:%i 6:%i 7:%i 8:%i\r\n", ch_buf[0], ch_buf[1], ch_buf[2], ch_buf[3], ch_buf[4], ch_buf[5], ch_buf[6], ch_buf[7]);
-      softwareserial_Send((unsigned char *)uart_buf, strlen((char*)uart_buf));
-    }
-  #endif
-
 }
 
 void consoleLog(char *message)
 {
-    #ifdef DEBUG_SOFTWARE_SERIAL
-    if (debug_out){
-      softwareserial_Send((uint8_t *)message, strlen(message));
-    }
-    #endif
+#ifdef DEBUG_SERIAL_USART2
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)message, strlen(message));
+#endif
 
-    #if defined DEBUG_SERIAL_SENSOR && defined CONTROL_SENSOR
-    USART_sensorSend(1, (unsigned char *)message, strlen(message), 0);
-    #else
-      // TODO: Method to select which input is used for Protocol when both are active
-      #if defined(SERIAL_USART2_IT) && !defined(CONTROL_SENSOR)
-        USART2_IT_send((unsigned char *)message, strlen(message));
-      #elif defined(SERIAL_USART3_IT) && !defined(CONTROL_SENSOR)
-        USART3_IT_send((unsigned char *)message, strlen(message));
-      #elif !defined(CONTROL_SENSOR) && defined(DEBUG_SERIAL_SENSOR)
-        HAL_UART_Transmit_DMA(&huart2, (uint8_t *)message, strlen(message));
-      #endif
-    #endif
+#ifdef DEBUG_SERIAL_USART3
+    HAL_UART_Transmit_DMA(&huart3, (uint8_t *)message, strlen(message));
+#endif
+  // TODO: Method to select which input is used for Protocol when both are active
+#if defined(SERIAL_USART2_IT) && !defined(READ_SENSOR)
+  USART2_IT_send((unsigned char *)message, strlen(message));
+#elif defined(SERIAL_USART3_IT) && !defined(READ_SENSOR)
+  USART3_IT_send((unsigned char *)message, strlen(message));
+#else
+  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)message, strlen(message));
+#endif
 }
-
 
 #ifdef SERIAL_USART2_IT
 
@@ -240,4 +212,8 @@ SERIAL_USART_IT_BUFFERTYPE serial_usart_buffer_pop(volatile SERIAL_USART_BUFFER 
       usart_buf->tail = ((usart_buf->tail + 1 ) % SERIAL_USART_BUFFER_SIZE);
   }
   return t;
+}
+
+void serial_usart_buffer_flush(volatile SERIAL_USART_BUFFER *usart_buf) {
+  usart_buf->tail = usart_buf->head;
 }
